@@ -9,7 +9,7 @@ with st.sidebar:
     st.markdown(
         """
         Welcome! This chatbot uses Microsoft's DialoGPT-medium model.
-        
+
         - Type your message below.
         - Click **Reset Chat** to start over.
         """
@@ -17,6 +17,7 @@ with st.sidebar:
     if st.button("🔁 Reset Chat", use_container_width=True):
         st.session_state.chat_history_ids = None
         st.session_state.past_input = []
+        st.session_state.input = ""
         st.experimental_rerun()
 
 # --- Model Loading ---
@@ -33,6 +34,8 @@ if "chat_history_ids" not in st.session_state:
     st.session_state.chat_history_ids = None
 if "past_input" not in st.session_state:
     st.session_state.past_input = []
+if "input" not in st.session_state:
+    st.session_state.input = ""
 
 # --- Main Chat UI ---
 st.markdown(
@@ -45,16 +48,20 @@ st.markdown(
         max-width: 80%;
         display: inline-block;
         word-break: break-word;
+        color: #222; /* Darker text */
+        font-size: 1.05em;
     }
     .user-bubble {
         background: #DCF8C6;
         align-self: flex-end;
         margin-left: 20%;
+        border: 1px solid #b2e59e;
     }
     .bot-bubble {
         background: #F1F0F0;
         align-self: flex-start;
         margin-right: 20%;
+        border: 1px solid #cccccc;
     }
     </style>
     """,
@@ -82,11 +89,17 @@ with chat_container:
 st.markdown("---")
 col1, col2 = st.columns([5, 1])
 with col1:
-    user_input = st.text_input("Type your message...", key="input", label_visibility="collapsed")
+    user_input = st.text_input(
+        "Type your message...",
+        key="input",
+        label_visibility="collapsed",
+        value=st.session_state.input,
+    )
 with col2:
     send_clicked = st.button("Send", use_container_width=True)
 
-if (user_input and not send_clicked) or send_clicked:
+# --- Chat Logic ---
+def process_input(user_input):
     input_ids = tokenizer.encode(user_input + tokenizer.eos_token, return_tensors="pt")
     if st.session_state.chat_history_ids is not None:
         bot_input_ids = torch.cat([st.session_state.chat_history_ids, input_ids], dim=-1)
@@ -107,4 +120,8 @@ if (user_input and not send_clicked) or send_clicked:
 
     st.session_state.past_input.append(("You", user_input))
     st.session_state.past_input.append(("Bot", output))
+    st.session_state.input = ""  # Clear input box
+
+if (user_input and send_clicked):
+    process_input(user_input)
     st.experimental_rerun()
